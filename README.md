@@ -21,11 +21,15 @@ git clone https://github.com/sodahiya/MINST-Classification
 ```bash 
 pip install -r requirements.txt
 ```
-3. Run
+3. Unzip
+```bash
+CSVMNISTDataset.zip
+```
+4. Run
 ```bash
 main.ipynb
 ```
-4. Open predictor.html with a live server
+5. Open predictor.html with a live server
 ---
 ## Neural Network Architecture
 TrainLatest.csv: 60,000 training samples  
