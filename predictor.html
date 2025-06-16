@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MNIST Digit Predictor</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center">
+  <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
+    <h1 class="text-2xl font-bold mb-4 text-center">MNIST Digit Predictor</h1>
+    <center><canvas id="canvas" width="280" height="280" class="border mb-4"></canvas></center>
+    <div class="flex justify-between">
+      <button onclick="clearCanvas()" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">Clear</button>
+      <button onclick="predictDigit()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Predict</button>
+    </div>
+    <div class="mt-4 text-center">
+      <p class="text-xl">Prediction: <span id="prediction" class="font-bold text-green-600">?</span></p>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = 'black';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    let drawing = false;
+    let weights = null;
+
+    canvas.addEventListener('mousedown', () => drawing = true);
+    canvas.addEventListener('mouseup', () => drawing = false);
+    canvas.addEventListener('mouseout', () => drawing = false);
+    canvas.addEventListener('mousemove', (e) => {
+      if (!drawing) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      ctx.fillStyle = 'white';
+
+      const gridSize = 10;
+      const snappedX = Math.floor(x / gridSize) * gridSize;
+      const snappedY = Math.floor(y / gridSize) * gridSize;
+      ctx.fillRect(snappedX, snappedY, gridSize, gridSize);
+    });
+
+    function clearCanvas() {
+      ctx.fillStyle = 'black';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      document.getElementById('prediction').textContent = '?';
+    }
+
+    function preprocessCanvas(canvas) {
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = 28;
+      tempCanvas.height = 28;
+      const tempCtx = tempCanvas.getContext('2d');
+
+      tempCtx.drawImage(canvas, 0, 0, 28, 28);
+      const imageData = tempCtx.getImageData(0, 0, 28, 28);
+      const data = imageData.data;
+      const grayscale = [];
+
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const avg = (r + g + b) / 3;
+        const normalized = avg / 255;
+        grayscale.push(normalized);
+      }
+
+      return tf.tensor2d(grayscale, [784, 1]);
+    }
+
+    async function predictDigit() {
+      if (!weights) {
+        weights = await loadWeights();
+      }
+
+      const X = preprocessCanvas(canvas);
+
+      const [Z1, A1, Z2, A2] = forwardProp(X, weights);
+        const prediction = A2.argMax().dataSync()[0];
+
+      document.getElementById('prediction').textContent = prediction;
+    }
+
+    async function loadWeights() {
+      const response = await fetch('Weights.json');
+      const json = await response.json();
+
+      return {
+        W1: tf.tensor2d(json.W1),
+        B1: tf.tensor2d(json.B1),
+        W2: tf.tensor2d(json.W2),
+        B2: tf.tensor2d(json.B2),
+      };
+    }
+
+    function ReLU(x) {
+      return x.relu();
+    }
+
+    function softMax(z) {
+    return tf.softmax(z.reshape([z.size])); // 1D [10] tensor
+    }
+
+    function forwardProp(X, weights) {
+      const Z1 = tf.add(tf.matMul(weights.W1, X), weights.B1);
+      const A1 = ReLU(Z1);
+      const Z2 = tf.add(tf.matMul(weights.W2, A1), weights.B2);
+      const A2 = softMax(Z2);
+      return [Z1, A1, Z2, A2];
+    }
+  </script>
+</body>
+</html>
